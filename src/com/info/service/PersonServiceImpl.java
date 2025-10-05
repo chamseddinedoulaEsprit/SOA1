@@ -1,115 +1,109 @@
 package com.info.service;
 
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 import javax.jws.WebService;
-
 import com.poly.info.db.ConnexionDB;
 import com.info.model.Person;
 
 @WebService(endpointInterface="com.info.service.PersonService")
 public class PersonServiceImpl implements PersonService {
-    Connection cn = ConnexionDB.getConnexion();
-    Statement st = null;
+    private Connection getConnection() throws SQLException {
+        return ConnexionDB.getConnexion();
+    }
 
     @Override
     public boolean addPerson(Person p) {
-        String sql = "INSERT INTO `person` (`name`,`age`) VALUES ('" + p.getName() + "'," + p.getAge() + ")";
-        try {
-            st = cn.createStatement();
-            st.executeUpdate(sql);
-            System.out.println("Ajout avec succès");
-            return true;
-        } catch (Exception e) {
+        if (p == null || p.getName() == null) {
+            return false;
+        }
+        String sql = "INSERT INTO person (name, age) VALUES (?, ?)";
+        try (Connection cn = getConnection();
+             PreparedStatement pstmt = cn.prepareStatement(sql)) {
+            pstmt.setString(1, p.getName());
+            pstmt.setInt(2, p.getAge());
+            return pstmt.executeUpdate() > 0;
+        } catch (SQLException e) {
             e.printStackTrace();
-            System.out.println("Erreur add");
             return false;
         }
     }
 
     @Override
     public boolean deletePerson(int id) {
-        String sql = "DELETE FROM `person` WHERE id=" + id;
-        try {
-            st = cn.createStatement();
-            st.executeUpdate(sql);
-            return true;
+        String sql = "DELETE FROM person WHERE id = ?";
+        try (Connection cn = getConnection();
+             PreparedStatement pstmt = cn.prepareStatement(sql)) {
+            pstmt.setInt(1, id);
+            return pstmt.executeUpdate() > 0;
         } catch (SQLException e) {
             e.printStackTrace();
-            System.out.println(e.getMessage());
             return false;
         }
     }
 
     @Override
     public Person getPersonByName(String name) {
-        Person person = null;
-        String sql = "SELECT `ID`, `Name`, `Age` FROM `person` WHERE name = '" + name + "'";
-        try {
-            st = cn.createStatement();
-            ResultSet rs = st.executeQuery(sql);
-
-            while (rs.next()) {
-                person = new Person();
-                person.setId(rs.getInt("id"));
-                person.setAge(rs.getInt("age"));
-                person.setName(rs.getString("name"));
+        if (name == null) {
+            return null;
+        }
+        String sql = "SELECT id, name, age FROM person WHERE name = ?";
+        try (Connection cn = getConnection();
+             PreparedStatement pstmt = cn.prepareStatement(sql)) {
+            pstmt.setString(1, name);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return extractPersonFromResultSet(rs);
+                }
             }
-            return person;
+            return null;
         } catch (SQLException e) {
             e.printStackTrace();
-            System.out.println(e.getMessage());
             return null;
         }
     }
 
     @Override
     public Person getPerson(int id) {
-        Person person = null;
-        String sql = "SELECT `ID`, `Name`, `Age` FROM `person` WHERE id=" + id;
-        try {
-            st = cn.createStatement();
-            ResultSet rs = st.executeQuery(sql);
-
-            while (rs.next()) {
-                person = new Person();
-                person.setId(rs.getInt("id"));
-                person.setAge(rs.getInt("age"));
-                person.setName(rs.getString("name"));
+        String sql = "SELECT id, name, age FROM person WHERE id = ?";
+        try (Connection cn = getConnection();
+             PreparedStatement pstmt = cn.prepareStatement(sql)) {
+            pstmt.setInt(1, id);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return extractPersonFromResultSet(rs);
+                }
             }
-            return person;
+            return null;
         } catch (SQLException e) {
             e.printStackTrace();
-            System.out.println(e.getMessage());
             return null;
         }
     }
 
     @Override
     public Person[] getAllPersons() {
-        Person[] persons = new Person[100];
-        String sql = "SELECT * FROM `person`";
-        try {
-            int index = 0;
-            st = cn.createStatement();
-            ResultSet rs = st.executeQuery(sql);
+        String sql = "SELECT id, name, age FROM person";
+        List<Person> personList = new ArrayList<>();
+        try (Connection cn = getConnection();
+             Statement stmt = cn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
             while (rs.next()) {
-                Person person = new Person();
-                person.setId(rs.getInt("id"));
-                person.setName(rs.getString("Name"));
-                person.setAge(rs.getInt("Age"));
-                persons[index] = person;
-                index += 1;
+                personList.add(extractPersonFromResultSet(rs));
             }
-            return persons;
-
-        } catch (Exception e) {
+            return personList.toArray(new Person[0]);
+        } catch (SQLException e) {
             e.printStackTrace();
-            System.out.println(e.getMessage());
-            return null;
+            return new Person[0];
         }
+    }
+
+    private Person extractPersonFromResultSet(ResultSet rs) throws SQLException {
+        return new Person(
+            rs.getInt("id"),
+            rs.getString("name"),
+            rs.getInt("age")
+        );
     }
 }

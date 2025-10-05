@@ -10,12 +10,17 @@ public class Test {
             Person p1 = new Person(1, "chamseddine doula", 20);
             Person p2 = new Person(2, "yaacoub eya", 20);
             Person p3 = new Person(3, "chokri yassine", 20);
-            
+
             System.out.println("Status = " + ps.addPerson(p1));
             System.out.println("Status = " + ps.addPerson(p2));
             System.out.println("Status = " + ps.addPerson(p3));
-            
-            ps.getAllPersons();
+
+            Person[] persons = ps.getAllPersons();
+            for (Person p : persons) {
+                if (p != null) {
+                    System.out.println(p);
+                }
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
